@@ -2,6 +2,7 @@
   "name": "ad-api_info",
   "version": "0.1.0",
   "private": true,
+  "description": "Google広告APIリリースノート監視システム - Convex + Next.jsで構築されたリアルタイム通知アプリケーション",
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "next dev",

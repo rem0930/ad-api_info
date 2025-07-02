@@ -1,40 +1,117 @@
-# Welcome to your Convex + Next.js app
+# Google広告APIリリースノート監視システム
 
-This is a [Convex](https://convex.dev/) project created with [`npm create convex`](https://www.npmjs.com/package/create-convex).
+このプロジェクトは、Google広告APIのリリースノートを自動的に監視し、新しいリリースノートが公開された際にSlackに通知を送信するシステムです。
 
-After the initial setup (<2 minutes) you'll have a working full-stack app using:
+## 🚀 機能
 
-- Convex as your backend (database, server logic)
-- [React](https://react.dev/) as your frontend (web page interactivity)
-- [Next.js](https://nextjs.org/) for optimized web hosting and page routing
-- [Tailwind](https://tailwindcss.com/) for building great looking accessible UI
+- **自動監視**: 毎日JST 9:00にGoogle広告APIのRSSフィードをチェック
+- **重複検知**: 既に通知済みのリリースノートは除外
+- **Slack通知**: 新着リリースノートをSlackチャンネルに自動通知
+- **リアルタイムUI**: Convex + Next.jsによるリアルタイムデータ表示
+- **エラー通知**: 監視処理でエラーが発生した場合もSlackに通知
 
-## Get started
+## 🛠️ 技術スタック
 
-If you just cloned this codebase and didn't use `npm create convex`, run:
+- **バックエンド**: [Convex](https://convex.dev/) - リアルタイムデータベースとサーバーロジック
+- **フロントエンド**: [React](https://react.dev/) + [Next.js](https://nextjs.org/) - モダンなWebアプリケーション
+- **スタイリング**: [Tailwind CSS](https://tailwindcss.com/) - 美しくアクセシブルなUI
+- **通知**: Slack Webhook - リアルタイム通知
+
+## 📦 セットアップ
+
+### 前提条件
+
+- Node.js 18以上
+- pnpm（推奨）またはnpm
+- Convexアカウント
+- Slack Webhook URL
+
+### インストール
+
+1. リポジトリをクローン
+```bash
+git clone https://github.com/rem0930/ad-api_info.git
+cd ad-api_info
+```
+
+2. 依存関係をインストール
+```bash
+pnpm install
+```
+
+3. Convexプロジェクトをセットアップ
+```bash
+npx convex dev
+```
+
+4. 環境変数を設定
+```bash
+# .env.localファイルを作成
+SLACK_WEBHOOK_URL=your_slack_webhook_url_here
+```
+
+5. 開発サーバーを起動
+```bash
+pnpm dev
+```
+
+## 🔧 設定
+
+### Slack通知の設定
+
+1. SlackワークスペースでIncoming Webhookを設定
+2. 取得したWebhook URLを環境変数に設定
+3. `convex/myFunctions.ts`の`SLACK_WEBHOOK_URL`を更新
+
+### 監視スケジュールの変更
+
+`convex/myFunctions.ts`の`googleAdsReleaseNoteCheck`関数内のcron設定を変更：
+
+```typescript
+cron: "0 9 * * *", // 毎日JST 9:00（UTC 0:00）
+```
+
+## 📁 プロジェクト構造
 
 ```
-npm install
-npm run dev
+ad-api_info/
+├── app/                    # Next.jsアプリケーション
+│   ├── page.tsx           # メインページ
+│   └── layout.tsx         # レイアウト
+├── convex/                # Convexバックエンド
+│   ├── myFunctions.ts     # メイン関数（cron、クエリ、ミューテーション）
+│   ├── schema.ts          # データベーススキーマ
+│   ├── slack.ts           # Slack通知機能
+│   └── sources/
+│       └── googleAds.ts   # Google広告API関連機能
+├── components/            # Reactコンポーネント
+└── public/               # 静的ファイル
 ```
 
-If you're reading this README on GitHub and want to use this template, run:
+## 🚀 デプロイ
 
+### Convexへのデプロイ
+
+```bash
+npx convex deploy
 ```
-npm create convex@latest -- -t nextjs
-```
 
-## Learn more
+### Next.jsアプリケーションのデプロイ
 
-To learn more about developing your project with Convex, check out:
+Vercel、Netlify、またはその他のプラットフォームにデプロイ可能です。
 
-- The [Tour of Convex](https://docs.convex.dev/get-started) for a thorough introduction to Convex principles.
-- The rest of [Convex docs](https://docs.convex.dev/) to learn about all Convex features.
-- [Stack](https://stack.convex.dev/) for in-depth articles on advanced topics.
+## 📚 学習リソース
 
-## Join the community
+ConvexとNext.jsの詳細については以下を参照してください：
 
-Join thousands of developers building full-stack apps with Convex:
+- [Convex ドキュメント](https://docs.convex.dev/) - Convexの包括的なドキュメント
+- [Next.js ドキュメント](https://nextjs.org/docs) - Next.jsの詳細ガイド
+- [Convex Discord](https://convex.dev/community) - リアルタイムサポート
 
-- Join the [Convex Discord community](https://convex.dev/community) to get help in real-time.
-- Follow [Convex on GitHub](https://github.com/get-convex/), star and contribute to the open-source implementation of Convex.
+## 🤝 コントリビューション
+
+プルリクエストやイシューの報告を歓迎します！
+
+## 📄 ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
