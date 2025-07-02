@@ -197,47 +197,49 @@ export const addGoogleAdsReleaseNote = mutation({
 export const manualCheckGoogleAdsReleaseNotes = action({
   args: {},
   handler: async (ctx): Promise<Array<{title: string; link: string; pubDate: string}>> => {
-    // RSSフィードを取得
-    const response = await fetch('https://developers.google.com/feeds/google-ads-api-release-notes.xml');
-    const xmlText = await response.text();
-    
-    // 簡易的なXMLパース
-    const items: Array<{title: string; link: string; pubDate: string}> = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match;
-    
-    while ((match = itemRegex.exec(xmlText)) !== null) {
-      const itemXml = match[1];
-      const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/);
-      const linkMatch = itemXml.match(/<link>([\s\S]*?)<\/link>/);
-      const pubDateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
-      
-      items.push({
-        title: titleMatch ? titleMatch[1].trim() : '',
-        link: linkMatch ? linkMatch[1].trim() : '',
-        pubDate: pubDateMatch ? pubDateMatch[1].trim() : '',
-      });
+    // Google Ads APIリリースノートページを取得し、バージョンごとのタイトルを抽出
+    try {
+      const response = await fetch('https://developers.google.com/google-ads/api/docs/release-notes');
+      if (!response.ok) {
+        throw new Error(`HTMLページの取得に失敗: ${response.status} ${response.statusText}`);
+      }
+      const htmlText = await response.text();
+      const items: Array<{title: string; link: string; pubDate: string}> = [];
+      // vXX (YYYY-MM-DD) 形式の見出しのみ抽出
+      const releaseNoteRegex = /<h[2-6][^>]*>([^<]+)<\/h[2-6]>/gi;
+      let match;
+      let count = 0;
+      while ((match = releaseNoteRegex.exec(htmlText)) !== null && count < 20) {
+        const title = match[1].trim();
+        if (/^v\d+(\.\d+)? \([0-9\-]+\)/.test(title)) {
+          items.push({
+            title: title,
+            link: 'https://developers.google.com/google-ads/api/docs/release-notes',
+            pubDate: new Date().toISOString().split('T')[0],
+          });
+          count++;
+        }
+      }
+      // 既存のリリースノートを取得し、重複を除外
+      const prev: GoogleAdsReleaseNote[] = await ctx.runQuery(api.myFunctions.listGoogleAdsReleaseNotes, { limit: 1000 });
+      const prevTitles: Set<string> = new Set(prev.map((i: GoogleAdsReleaseNote) => i.title));
+      const newItems: Array<{title: string; link: string; pubDate: string}> = items.filter(item => !prevTitles.has(item.title));
+      // 新着分をデータベースに保存
+      if (newItems.length > 0) {
+        const now = new Date().toISOString();
+        for (const item of newItems) {
+          await ctx.runMutation(api.myFunctions.addGoogleAdsReleaseNote, {
+            title: item.title,
+            link: item.link,
+            pubDate: item.pubDate,
+            lastSeen: now,
+          });
+        }
+      }
+      return newItems;
+    } catch (error) {
+      throw error;
     }
-
-    // データベースから既存のリリースノートを取得
-    const prev: GoogleAdsReleaseNote[] = await ctx.runQuery(api.myFunctions.listGoogleAdsReleaseNotes, { limit: 1000 });
-    const prevLinks: Set<string> = new Set(prev.map((i: GoogleAdsReleaseNote) => i.link));
-
-    // 新着分のみを抽出
-    const newItems: Array<{title: string; link: string; pubDate: string}> = items.filter(item => !prevLinks.has(item.link));
-
-    // 新着分をデータベースに保存
-    const now = new Date().toISOString();
-    for (const item of newItems) {
-      await ctx.runMutation(api.myFunctions.addGoogleAdsReleaseNote, {
-        title: item.title,
-        link: item.link,
-        pubDate: item.pubDate,
-        lastSeen: now,
-      });
-    }
-    
-    return newItems;
   },
 });
 

@@ -70,12 +70,32 @@ function GoogleAdsDashboard() {
   // 手動チェック処理
   const handleManualCheck = async () => {
     try {
+      console.log('=== 手動チェック開始 ===');
       console.log('手動チェックを開始します...');
+      
       const result = await manualCheck({});
-      console.log('新しく追加されたリリースノート:', result);
+      console.log('手動チェック結果:', result);
+      console.log('新しく追加されたリリースノート数:', result.length);
+      console.log('新しく追加されたリリースノート詳細:', result);
+      
+      if (result.length === 0) {
+        console.log('新着リリースノートは0件でした');
+        console.log('考えられる原因:');
+        console.log('1. RSSフィードに新しい記事がない');
+        console.log('2. 既に全ての記事がデータベースに保存済み');
+        console.log('3. RSSフィードの取得に失敗');
+      }
+      
       alert(`チェック完了！新着: ${result.length}件`);
+      console.log('=== 手動チェック終了 ===');
     } catch (error) {
+      console.error('=== 手動チェックエラー ===');
       console.error('リリースノートの取得に失敗しました:', error);
+      console.error('エラーの詳細:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       alert('エラーが発生しました。コンソールを確認してください。');
     }
   };
