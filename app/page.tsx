@@ -4,12 +4,23 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Link from "next/link";
 
+/**
+ * アプリケーションのメインページコンポーネント
+ * 
+ * このページでは以下の機能を提供しています：
+ * - Convexデータベースとのリアルタイム連携デモ
+ * - 数値の追加・表示機能
+ * - 開発者向けリソースへのリンク
+ */
 export default function Home() {
   return (
     <>
+      {/* 固定ヘッダー */}
       <header className="sticky top-0 z-10 bg-background p-4 border-b-2 border-slate-200 dark:border-slate-800 flex flex-row justify-between items-center">
         Convex + Next.js
       </header>
+      
+      {/* メインコンテンツエリア */}
       <main className="p-8 flex flex-col gap-16">
         <h1 className="text-4xl font-bold text-center">Convex + Next.js</h1>
         <Content />
@@ -18,13 +29,25 @@ export default function Home() {
   );
 }
 
+/**
+ * メインコンテンツコンポーネント
+ * 
+ * Convexのリアルタイム機能をデモンストレーションするためのコンポーネント
+ * - データベースからの数値取得
+ * - 新しい数値の追加
+ * - リアルタイム更新の確認
+ */
 function Content() {
+  // Convexクエリを使用してデータベースから数値を取得
   const { viewer, numbers } =
     useQuery(api.myFunctions.listNumbers, {
       count: 10,
     }) ?? {};
+  
+  // Convexミューテーションを使用してデータベースに数値を追加
   const addNumber = useMutation(api.myFunctions.addNumber);
 
+  // データ読み込み中の表示
   if (viewer === undefined || numbers === undefined) {
     return (
       <div className="mx-auto">
@@ -35,11 +58,16 @@ function Content() {
 
   return (
     <div className="flex flex-col gap-8 max-w-lg mx-auto">
+      {/* ユーザー情報表示 */}
       <p>Welcome {viewer ?? "Anonymous"}!</p>
+      
+      {/* 機能説明 */}
       <p>
         Click the button below and open this page in another window - this data
         is persisted in the Convex cloud database!
       </p>
+      
+      {/* ランダム数値追加ボタン */}
       <p>
         <button
           className="bg-foreground text-background text-sm px-4 py-2 rounded-md"
@@ -50,12 +78,16 @@ function Content() {
           Add a random number
         </button>
       </p>
+      
+      {/* 数値リスト表示 */}
       <p>
         Numbers:{" "}
         {numbers?.length === 0
           ? "Click the button!"
           : numbers?.join(", ") ?? "..."}
       </p>
+      
+      {/* 開発者向け情報 */}
       <p>
         Edit{" "}
         <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
@@ -70,6 +102,8 @@ function Content() {
         </code>{" "}
         to change your frontend
       </p>
+      
+      {/* サーバーコンポーネント例へのリンク */}
       <p>
         See the{" "}
         <Link href="/server" className="underline hover:no-underline">
@@ -77,6 +111,8 @@ function Content() {
         </Link>{" "}
         for an example of loading data in a server component
       </p>
+      
+      {/* 開発者リソースセクション */}
       <div className="flex flex-col">
         <p className="text-lg font-bold">Useful resources:</p>
         <div className="flex gap-2">
@@ -112,6 +148,15 @@ function Content() {
   );
 }
 
+/**
+ * リソースカードコンポーネント
+ * 
+ * 開発者向けリソースへのリンクを表示するためのカードコンポーネント
+ * 
+ * @param title - リソースのタイトル
+ * @param description - リソースの説明
+ * @param href - リソースのURL
+ */
 function ResourceCard({
   title,
   description,
