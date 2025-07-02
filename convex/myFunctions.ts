@@ -44,6 +44,93 @@ export const listNumbers = query({
 });
 
 /**
+ * Google広告リリースノートのリストを取得するクエリ関数
+ * @param limit - 取得するリリースノートの最大数
+ * @returns リリースノートの配列（最新順）
+ */
+export const listGoogleAdsReleaseNotes = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50; // デフォルトで50件取得
+    
+    const releaseNotes = await ctx.db
+      .query("googleAdsReleaseNotes")
+      .order("desc") // 最新のものから
+      .take(limit);
+    
+    return releaseNotes.reverse(); // 古い順に表示
+  },
+});
+
+/**
+ * Google広告リリースノートを検索するクエリ関数
+ * @param searchTerm - 検索キーワード
+ * @param limit - 取得するリリースノートの最大数
+ * @returns 検索結果のリリースノート配列
+ */
+export const searchGoogleAdsReleaseNotes = query({
+  args: {
+    searchTerm: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    const searchTerm = args.searchTerm.toLowerCase();
+    
+    const allNotes = await ctx.db.query("googleAdsReleaseNotes").collect();
+    
+    // タイトルで検索（大文字小文字を区別しない）
+    const filteredNotes = allNotes.filter(note => 
+      note.title.toLowerCase().includes(searchTerm)
+    );
+    
+    // 最新順にソートして制限
+    return filteredNotes
+      .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+      .slice(0, limit);
+  },
+});
+
+/**
+ * Google広告リリースノートの統計情報を取得するクエリ関数
+ * @returns リリースノートの統計情報
+ */
+export const getGoogleAdsStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const allNotes = await ctx.db.query("googleAdsReleaseNotes").collect();
+    
+    // 今日の日付を取得
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // 今月の日付範囲を計算
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // 今日追加されたリリースノート
+    const todayNotes = allNotes.filter(note => 
+      note.lastSeen.startsWith(todayStr)
+    );
+    
+    // 今月追加されたリリースノート
+    const thisMonthNotes = allNotes.filter(note => {
+      const noteDate = new Date(note.lastSeen);
+      return noteDate >= firstDayOfMonth && noteDate <= lastDayOfMonth;
+    });
+    
+    return {
+      total: allNotes.length,
+      today: todayNotes.length,
+      thisMonth: thisMonthNotes.length,
+      lastUpdated: allNotes.length > 0 ? allNotes[allNotes.length - 1].lastSeen : null,
+    };
+  },
+});
+
+/**
  * データベースに新しい数値を追加するミューテーション関数
  * @param value - 追加する数値
  */
@@ -64,6 +151,55 @@ export const addNumber = mutation({
     console.log("Added new document with id:", id);
     // Optionally, return a value from your mutation.
     // return id;
+  },
+});
+
+/**
+ * 手動でGoogle広告リリースノートをチェックするミューテーション関数
+ * @returns 新しく追加されたリリースノートの配列
+ */
+export const manualCheckGoogleAdsReleaseNotes = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // RSSフィードを取得
+    const response = await fetch('https://developers.google.com/feeds/google-ads-api-release-notes.xml');
+    const xmlText = await response.text();
+    
+    // 簡易的なXMLパース
+    const items = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    
+    while ((match = itemRegex.exec(xmlText)) !== null) {
+      const itemXml = match[1];
+      const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/);
+      const linkMatch = itemXml.match(/<link>([\s\S]*?)<\/link>/);
+      const pubDateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+      
+      items.push({
+        title: titleMatch ? titleMatch[1].trim() : '',
+        link: linkMatch ? linkMatch[1].trim() : '',
+        pubDate: pubDateMatch ? pubDateMatch[1].trim() : '',
+      });
+    }
+
+    // データベースから既存のリリースノートを取得
+    const prev = await ctx.db.query('googleAdsReleaseNotes').collect();
+    const prevLinks = new Set(prev.map(i => i.link));
+
+    // 新着分のみを抽出
+    const newItems = items.filter(item => !prevLinks.has(item.link));
+
+    // 新着分をデータベースに保存
+    const now = new Date().toISOString();
+    for (const item of newItems) {
+      await ctx.db.insert('googleAdsReleaseNotes', {
+        ...item,
+        lastSeen: now,
+      });
+    }
+    
+    return newItems;
   },
 });
 
