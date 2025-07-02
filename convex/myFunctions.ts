@@ -44,6 +44,17 @@ export const listNumbers = query({
 });
 
 /**
+ * Google広告リリースノートの型定義
+ */
+interface GoogleAdsReleaseNote {
+  _id: string;
+  title: string;
+  link: string;
+  pubDate: string;
+  lastSeen: string;
+}
+
+/**
  * Google広告リリースノートのリストを取得するクエリ関数
  * @param limit - 取得するリリースノートの最大数
  * @returns リリースノートの配列（最新順）
@@ -155,18 +166,43 @@ export const addNumber = mutation({
 });
 
 /**
- * 手動でGoogle広告リリースノートをチェックするミューテーション関数
+ * Google広告リリースノートをデータベースに追加するミューテーション関数
+ * @param title - リリースノートのタイトル
+ * @param link - リリースノートのリンク
+ * @param pubDate - 公開日
+ * @param lastSeen - 最後に確認した日時
+ */
+export const addGoogleAdsReleaseNote = mutation({
+  args: {
+    title: v.string(),
+    link: v.string(),
+    pubDate: v.string(),
+    lastSeen: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("googleAdsReleaseNotes", {
+      title: args.title,
+      link: args.link,
+      pubDate: args.pubDate,
+      lastSeen: args.lastSeen,
+    });
+    return id;
+  },
+});
+
+/**
+ * 手動でGoogle広告リリースノートをチェックするアクション関数
  * @returns 新しく追加されたリリースノートの配列
  */
-export const manualCheckGoogleAdsReleaseNotes = mutation({
+export const manualCheckGoogleAdsReleaseNotes = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<Array<{title: string; link: string; pubDate: string}>> => {
     // RSSフィードを取得
     const response = await fetch('https://developers.google.com/feeds/google-ads-api-release-notes.xml');
     const xmlText = await response.text();
     
     // 簡易的なXMLパース
-    const items = [];
+    const items: Array<{title: string; link: string; pubDate: string}> = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
     
@@ -184,17 +220,19 @@ export const manualCheckGoogleAdsReleaseNotes = mutation({
     }
 
     // データベースから既存のリリースノートを取得
-    const prev = await ctx.db.query('googleAdsReleaseNotes').collect();
-    const prevLinks = new Set(prev.map(i => i.link));
+    const prev: GoogleAdsReleaseNote[] = await ctx.runQuery(api.myFunctions.listGoogleAdsReleaseNotes, { limit: 1000 });
+    const prevLinks: Set<string> = new Set(prev.map((i: GoogleAdsReleaseNote) => i.link));
 
     // 新着分のみを抽出
-    const newItems = items.filter(item => !prevLinks.has(item.link));
+    const newItems: Array<{title: string; link: string; pubDate: string}> = items.filter(item => !prevLinks.has(item.link));
 
     // 新着分をデータベースに保存
     const now = new Date().toISOString();
     for (const item of newItems) {
-      await ctx.db.insert('googleAdsReleaseNotes', {
-        ...item,
+      await ctx.runMutation(api.myFunctions.addGoogleAdsReleaseNote, {
+        title: item.title,
+        link: item.link,
+        pubDate: item.pubDate,
         lastSeen: now,
       });
     }

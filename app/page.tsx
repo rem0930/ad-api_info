@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Link from "next/link";
 import { useState } from "react";
@@ -59,12 +59,25 @@ function GoogleAdsDashboard() {
   const releaseNotes = isSearching && searchTerm.trim() ? searchReleaseNotes : normalReleaseNotes;
   
   // 手動チェック機能
-  const manualCheck = useMutation(api.myFunctions.manualCheckGoogleAdsReleaseNotes);
+  const manualCheck = useAction(api.myFunctions.manualCheckGoogleAdsReleaseNotes);
 
   // 検索処理
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     setIsSearching(term.trim().length > 0);
+  };
+
+  // 手動チェック処理
+  const handleManualCheck = async () => {
+    try {
+      console.log('手動チェックを開始します...');
+      const result = await manualCheck({});
+      console.log('新しく追加されたリリースノート:', result);
+      alert(`チェック完了！新着: ${result.length}件`);
+    } catch (error) {
+      console.error('リリースノートの取得に失敗しました:', error);
+      alert('エラーが発生しました。コンソールを確認してください。');
+    }
   };
 
   // データ読み込み中の表示
@@ -115,9 +128,7 @@ function GoogleAdsDashboard() {
       {/* 手動チェックボタン */}
       <div className="flex justify-center">
         <button
-          onClick={() => {
-            void manualCheck({});
-          }}
+          onClick={handleManualCheck}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
         >
           手動でリリースノートをチェック
@@ -163,9 +174,7 @@ function GoogleAdsDashboard() {
             </p>
             {!isSearching && (
               <button
-                onClick={() => {
-                  void manualCheck({});
-                }}
+                onClick={handleManualCheck}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
               >
                 最初のリリースノートを取得
@@ -225,7 +234,10 @@ function StatCard({
  * @param note - リリースノートのデータ
  * @param searchTerm - 検索キーワード（ハイライト用）
  */
-function ReleaseNoteCard({ note, searchTerm }: { note: any; searchTerm?: string }) {
+function ReleaseNoteCard({ note, searchTerm }: { 
+  note: { title: string; link: string; pubDate: string; lastSeen: string }; 
+  searchTerm?: string 
+}) {
   // 検索キーワードをハイライトする関数
   const highlightText = (text: string, term: string) => {
     if (!term || term.trim() === '') return text;
